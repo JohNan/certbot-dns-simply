@@ -1,26 +1,22 @@
-import os
-import time
 import base64
-import json
 
 import requests
-import zope.interface
-
-from certbot.plugins.dns_common import DNSAuthenticator, CredentialsConfiguration
 from certbot.errors import PluginError
+from certbot.plugins.dns_common import DNSAuthenticator
 
-@zope.interface.implementer(interfaces.IAuthenticator)
-@zope.interface.provider(interfaces.IPluginFactory)
-class SimplyAuthenticator(DNSAuthenticator):
+
+class Authenticator(DNSAuthenticator):
     description = "Obtain certificates using a DNS TXT record (DNS-01 challenge) with Simply.com"
 
     def __init__(self, *args, **kwargs):
-        super(SimplyAuthenticator, self).__init__(*args, **kwargs)
+        super(Authenticator, self).__init__(*args, **kwargs)
         self.credentials = None
 
     @classmethod
-    def add_parser_arguments(cls, add):
-        super(SimplyAuthenticator, cls).add_parser_arguments(add, default_propagation_seconds=60)
+    def add_parser_arguments(cls, add, default_propagation_seconds = 60):
+        super(Authenticator, cls).add_parser_arguments(
+            add, default_propagation_seconds=default_propagation_seconds
+        )
         add("credentials", help="Simply.com API credentials INI file.")
 
     def more_info(self):
