@@ -133,7 +133,7 @@ class TestSimplyClient(unittest.TestCase):
 
     @requests_mock.Mocker()
     def test_add_txt_record_fail(self, mock):
-        mock.post(f"https://api.simply.com/2/my/products/{self.domain}/dns/records/", status_code=400, text="Error", json=[
+        mock.post(f"https://api.simply.com/2/my/products/{self.domain}/dns/records/", status_code=400, json=[
             {}
         ])
 
