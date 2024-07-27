@@ -113,7 +113,9 @@ class TestSimplyClient(unittest.TestCase):
 
     @requests_mock.Mocker()
     def test_add_txt_record(self, mock):
-        mock.post(f"https://api.simply.com/2/my/products/{self.domain}/dns/records/", status_code=200)
+        mock.post(f"https://api.simply.com/2/my/products/{self.domain}/dns/records/", status_code=200, json=[
+            {}
+        ])
         self.client.add_txt_record(self.domain, f"{self.sub_domain}.{self.domain}", "test_validation")
         self.assertTrue(mock.called)
 
