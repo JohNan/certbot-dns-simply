@@ -1,7 +1,6 @@
 """Tests for certbot_dns_simply.dns_simply."""
 
 import unittest
-from unittest.mock import patch, MagicMock
 from unittest import mock
 import requests_mock
 from certbot.compat import os
