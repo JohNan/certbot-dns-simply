@@ -27,7 +27,7 @@ class TestAuthenticator(
     """
     Test for Simoly DNS Authenticator
     """
-    
+
     def setUp(self):
         super().setUp()
         path = os.path.join(self.tempdir, "fake_credentials.ini")
@@ -106,7 +106,7 @@ class TestSimplyClient(unittest.TestCase):
     """
     Test for Simply API Client
     """
-    
+
     def setUp(self):
         self.client = SimplyClient("account_name", "api_key")
         self.domain = "example.com"
