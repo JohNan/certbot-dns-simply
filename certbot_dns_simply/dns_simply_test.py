@@ -46,7 +46,7 @@ class TestAuthenticator(
         )
 
         self.auth = Authenticator(config=None, name="simply")
-        self.auth._get_hetzner_client = mock.MagicMock(
+        self.auth._get_simply_client = mock.MagicMock(
             return_value=mock_client_wrapper
         )
 
