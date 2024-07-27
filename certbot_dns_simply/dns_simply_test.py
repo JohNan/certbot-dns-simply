@@ -38,6 +38,8 @@ class TestAuthenticator(
             simply_credentials=path, simply_propagation_seconds=0
         )
 
+        self.auth = Authenticator(config=self.config, name="simply")
+
         self.mock_client = mock.MagicMock()
 
         mock_client_wrapper = mock.MagicMock()
@@ -45,7 +47,6 @@ class TestAuthenticator(
             return_value=self.mock_client
         )
 
-        self.auth = Authenticator(config=None, name="simply")
         self.auth._get_simply_client = mock.MagicMock(
             return_value=mock_client_wrapper
         )
