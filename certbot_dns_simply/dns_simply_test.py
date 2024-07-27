@@ -113,7 +113,9 @@ class TestSimplyClient(unittest.TestCase):
 
     @requests_mock.Mocker()
     def test_add_txt_record(self, mock):
-        mock.post(f"https://api.simply.com/2/my/products/{self.domain}/dns/records/", status_code=200, json=[{}])
+        mock.post(f"https://api.simply.com/2/my/products/{self.domain}/dns/records/", status_code=200, json=[
+            {}
+        ])
         self.client.add_txt_record(self.domain, f"{self.sub_domain}.{self.domain}", "test_validation")
         self.assertTrue(mock.called)
 
@@ -122,14 +124,18 @@ class TestSimplyClient(unittest.TestCase):
         mock.get(f"https://api.simply.com/2/my/products/{self.domain}/dns/records/", json=[
             {"record_id": 123, "type": "TXT", "name": self.sub_domain, "data": "test_validation"}
         ])
-        mock.delete(f"https://api.simply.com/2/my/products/{self.domain}/dns/records/123/", status_code=200)
+        mock.delete(f"https://api.simply.com/2/my/products/{self.domain}/dns/records/123/", status_code=200, json=[
+            {}
+        ])
 
         self.client.del_txt_record(self.domain, f"{self.sub_domain}.{self.domain}", "test_validation")
         self.assertTrue(mock.called)
 
     @requests_mock.Mocker()
     def test_add_txt_record_fail(self, mock):
-        mock.post(f"https://api.simply.com/2/my/products/{self.domain}/dns/records/", status_code=400, text="Error", json=[{}])
+        mock.post(f"https://api.simply.com/2/my/products/{self.domain}/dns/records/", status_code=400, text="Error", json=[
+            {}
+        ])
 
         with self.assertRaises(PluginError):
             self.client.add_txt_record(self.domain, f"{self.sub_domain}.{self.domain}", "test_validation")
