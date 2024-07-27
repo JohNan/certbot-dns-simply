@@ -1,3 +1,5 @@
+"""Tests for certbot_dns_simply.dns_simply."""
+
 import unittest
 from unittest.mock import patch, MagicMock
 from unittest import mock
@@ -22,6 +24,10 @@ FAKE_RECORD = {
 class TestAuthenticator(
     test_util.TempDirTestCase, dns_test_common.BaseAuthenticatorTest
 ):
+    """
+    Test for Simoly DNS Authenticator
+    """
+    
     def setUp(self):
         super().setUp()
         path = os.path.join(self.tempdir, "fake_credentials.ini")
@@ -46,7 +52,8 @@ class TestAuthenticator(
         mock_client_wrapper.__enter__ = mock.MagicMock(
             return_value=self.mock_client
         )
-
+        
+        # _get_simply_client | pylint: disable=protected-access
         self.auth._get_simply_client = mock.MagicMock(
             return_value=mock_client_wrapper
         )
@@ -94,9 +101,12 @@ class TestAuthenticator(
         self.mock_client.del_txt_record.assert_called_with(
             DOMAIN, "_acme-challenge." + DOMAIN + ".", mock.ANY
         )
-        
 
 class TestSimplyClient(unittest.TestCase):
+    """
+    Test for Simply API Client
+    """
+    
     def setUp(self):
         self.client = SimplyClient("account_name", "api_key")
         self.domain = "example.com"
