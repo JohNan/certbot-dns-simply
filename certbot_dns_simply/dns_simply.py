@@ -33,10 +33,12 @@ class Authenticator(DNSAuthenticator):
         )
 
     def _perform(self, domain, validation_name, validation):
-        self._get_simply_client().add_txt_record(domain, validation_name, validation)
+        with self._get_simply_client() as client:
+            client.add_txt_record(domain, validation_name, validation)
 
     def _cleanup(self, domain, validation_name, validation):
-        self._get_simply_client().del_txt_record(domain, validation_name, validation)
+        with self._get_simply_client() as client:
+            client.del_txt_record(domain, validation_name, validation)
 
     def _get_simply_client(self):
         return SimplyClient(
