@@ -72,7 +72,7 @@ class TestAuthenticator(
     def test_perform(self, _unused_mock_get_utility):
         self.mock_client.create_record.return_value = FAKE_RECORD
         self.auth.perform([self.achall])
-        self.mock_client.create_record.assert_called_with(
+        self.mock_client.add_txt_record.assert_called_with(
             "TXT", "_acme-challenge." + DOMAIN + ".", mock.ANY
         )
 
@@ -81,35 +81,36 @@ class TestAuthenticator(
             side_effect=PluginError()
         )
         self.assertRaises(PluginError, self.auth.perform, [self.achall])
-        self.mock_client.create_record.assert_called_with(
+        self.mock_client.add_txt_record.assert_called_with(
             "TXT", "_acme-challenge." + DOMAIN + ".", mock.ANY
         )
 
-    def test_perform_but_raises_plugin_error(self):
-        self.mock_client.create_record.side_effect = mock.MagicMock(
+    @patch_display_util()
+    def test_cleanup(self, _unused_mock_get_utility):
+        self.mock_client.create_record.return_value = FAKE_RECORD
+        # _attempt_cleanup | pylint: disable=protected-access
+        self.auth.perform([self.achall])
+        self.auth._attempt_cleanup = True
+        self.auth.cleanup([self.achall])
+
+        self.mock_client.del_txt_record.assert_called_with(
+            None, "TXT", "_acme-challenge." + DOMAIN + ".", mock.ANY
+        )
+
+    @patch_display_util()
+    def test_cleanup_but_raises_plugin_error(self, _unused_mock_get_utility):
+        self.mock_client.create_record.return_value = FAKE_RECORD
+        self.mock_client.delete_record.side_effect = mock.MagicMock(
             side_effect=PluginError()
         )
-        self.assertRaises(PluginError, self.auth.perform, [self.achall])
-        self.mock_client.create_record.assert_called_with(
-            "TXT", "_acme-challenge." + DOMAIN + ".", mock.ANY
+        # _attempt_cleanup | pylint: disable=protected-access
+        self.auth.perform([self.achall])
+        self.auth._attempt_cleanup = True
+
+        self.assertRaises(PluginError, self.auth.cleanup, [self.achall])
+        self.mock_client.del_txt_record.assert_called_with(
+            None, "TXT", "_acme-challenge." + DOMAIN + ".", mock.ANY
         )
-
-    @patch("certbot_dns_simply.dns_simply.SimplyClient")
-    def test_cleanup(self, mock_client):
-        mock_client_instance = mock_client.return_value
-        self.auth._setup_credentials = MagicMock()
-        self.auth.credentials = MagicMock()
-        self.auth.credentials.conf.return_value = "mock_value"
-        self.auth._get_simply_client = MagicMock(return_value=mock_client_instance)
-
-        achall = MagicMock()
-        achall.domain = "example.com"
-        achall.validation.return_value = "test_validation"
-
-        self.auth._cleanup("example.com", "_acme-challenge.example.com", "test_validation")
-
-        mock_client_instance.del_txt_record.assert_called_with("example.com", "_acme-challenge.example.com",
-                                                               "test_validation")
 
 
 class TestSimplyClient(unittest.TestCase):
