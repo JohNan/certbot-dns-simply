@@ -51,7 +51,7 @@ class TestAuthenticator(
         mock_client_wrapper.__enter__ = mock.MagicMock(
             return_value=self.mock_client
         )
-        
+
         # _get_simply_client | pylint: disable=protected-access
         self.auth._get_simply_client = mock.MagicMock(
             return_value=mock_client_wrapper
