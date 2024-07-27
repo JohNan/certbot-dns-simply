@@ -94,7 +94,7 @@ class TestAuthenticator(
         self.mock_client.del_txt_record.assert_called_with(
             DOMAIN, "_acme-challenge." + DOMAIN + ".", mock.ANY
         )
-
+        
 
 class TestSimplyClient(unittest.TestCase):
     def setUp(self):
