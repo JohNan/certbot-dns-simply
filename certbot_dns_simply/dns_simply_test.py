@@ -113,9 +113,7 @@ class TestSimplyClient(unittest.TestCase):
 
     @requests_mock.Mocker()
     def test_add_txt_record(self, mock):
-        mock.post(f"https://api.simply.com/2/my/products/{self.domain}/dns/records/", status_code=200, json=[
-            {}
-        ])
+        mock.post(f"https://api.simply.com/2/my/products/{self.domain}/dns/records/", status_code=200, json=[{}])
         self.client.add_txt_record(self.domain, f"{self.sub_domain}.{self.domain}", "test_validation")
         self.assertTrue(mock.called)
 
@@ -131,7 +129,7 @@ class TestSimplyClient(unittest.TestCase):
 
     @requests_mock.Mocker()
     def test_add_txt_record_fail(self, mock):
-        mock.post(f"https://api.simply.com/2/my/products/{self.domain}/dns/records/", status_code=400, text="Error")
+        mock.post(f"https://api.simply.com/2/my/products/{self.domain}/dns/records/", status_code=400, text="Error", json=[{}])
 
         with self.assertRaises(PluginError):
             self.client.add_txt_record(self.domain, f"{self.sub_domain}.{self.domain}", "test_validation")
