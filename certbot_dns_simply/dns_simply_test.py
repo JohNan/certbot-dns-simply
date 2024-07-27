@@ -73,7 +73,7 @@ class TestAuthenticator(
         self.mock_client.create_record.return_value = FAKE_RECORD
         self.auth.perform([self.achall])
         self.mock_client.add_txt_record.assert_called_with(
-            "TXT", "_acme-challenge." + DOMAIN + ".", mock.ANY
+            DOMAIN, "_acme-challenge." + DOMAIN + ".", mock.ANY
         )
 
     def test_perform_but_raises_plugin_error(self):
@@ -82,7 +82,7 @@ class TestAuthenticator(
         )
         self.assertRaises(PluginError, self.auth.perform, [self.achall])
         self.mock_client.add_txt_record.assert_called_with(
-            "TXT", "_acme-challenge." + DOMAIN + ".", mock.ANY
+            DOMAIN, "_acme-challenge." + DOMAIN + ".", mock.ANY
         )
 
     @patch_display_util()
@@ -94,7 +94,7 @@ class TestAuthenticator(
         self.auth.cleanup([self.achall])
 
         self.mock_client.del_txt_record.assert_called_with(
-            None, "TXT", "_acme-challenge." + DOMAIN + ".", mock.ANY
+            DOMAIN, "_acme-challenge." + DOMAIN + ".", mock.ANY
         )
 
     @patch_display_util()
@@ -109,7 +109,7 @@ class TestAuthenticator(
 
         self.assertRaises(PluginError, self.auth.cleanup, [self.achall])
         self.mock_client.del_txt_record.assert_called_with(
-            None, "TXT", "_acme-challenge." + DOMAIN + ".", mock.ANY
+            DOMAIN, "_acme-challenge." + DOMAIN + ".", mock.ANY
         )
 
 
