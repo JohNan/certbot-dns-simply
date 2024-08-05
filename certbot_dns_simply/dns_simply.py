@@ -11,7 +11,7 @@ class Authenticator(DNSAuthenticator):
     """DNS Authenticator for Simply.com
     This Authenticator uses the Simply.com API to fulfill a dns-01 challenge.
     """
-    
+
     description = "Obtain certificates using a DNS TXT record (DNS-01 challenge) with Simply.com"
 
     def __init__(self, *args, **kwargs):
@@ -77,7 +77,7 @@ class SimplyClient:
         try:
             self._request("POST", f"/my/products/{domain_name}/dns/records/", data)
         except requests.exceptions.RequestException as exp:
-            raise PluginError(f"Error adding TXT record: {exp}")
+            raise PluginError(f"Error adding TXT record: {exp}") from exp
 
     def del_txt_record(self, domain, validation_name, validation):
         sub_domain, domain_name = self._split_domain(validation_name, domain)
@@ -88,7 +88,7 @@ class SimplyClient:
                 try:
                     self._request("DELETE", f"/my/products/{domain_name}/dns/records/{record['record_id']}/")
                 except requests.exceptions.RequestException as exp:
-                    raise PluginError(f"Error deleting TXT record: {exp}")
+                    raise PluginError(f"Error deleting TXT record: {exp}") from exp
 
     def _split_domain(self, validation_name, domain):
         validation_name = validation_name.replace(f".{domain}", "")
@@ -99,6 +99,6 @@ class SimplyClient:
 
     def _request(self, method, endpoint, data=None):
         url = f"{self.API_URL}{endpoint}"
-        response = requests.request(method, url, headers=self.headers, json=data)
+        response = requests.request(method, url, headers=self.headers, json=data, timeout=30)
         response.raise_for_status()
         return response.json()
