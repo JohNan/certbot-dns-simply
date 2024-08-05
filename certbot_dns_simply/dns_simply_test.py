@@ -122,9 +122,12 @@ class TestSimplyClient(unittest.TestCase):
 
     @requests_mock.Mocker()
     def test_del_txt_record(self, request_mock):
-        request_mock.get(f"https://api.simply.com/2/my/products/{self.domain}/dns/records/", json=[
-            {"record_id": 123, "type": "TXT", "name": self.sub_domain, "data": "test_validation"}
-        ])
+        request_mock.get(f"https://api.simply.com/2/my/products/{self.domain}/dns/records/", json={
+            "records":[
+                {"record_id": 123, "type": "TXT", "name": self.sub_domain, "data": "test_validation"},
+                {"record_id": 333, "type": "NS", "name": "@", "data": "ns1.simply.com"},
+            ]
+        })
         request_mock.delete(f"https://api.simply.com/2/my/products/{self.domain}/dns/records/123/", status_code=200,
                             json=[
                                 {}
@@ -144,9 +147,12 @@ class TestSimplyClient(unittest.TestCase):
 
     @requests_mock.Mocker()
     def test_del_txt_record_fail(self, request_mock):
-        request_mock.get(f"https://api.simply.com/2/my/products/{self.domain}/dns/records/", json=[
-            {"record_id": 123, "type": "TXT", "name": self.sub_domain, "data": "test_validation"}
-        ])
+        request_mock.get(f"https://api.simply.com/2/my/products/{self.domain}/dns/records/", json={
+            "records":[
+                {"record_id": 123, "type": "TXT", "name": self.sub_domain, "data": "test_validation"},
+                {"record_id": 333, "type": "NS", "name": "@", "data": "ns1.simply.com"},
+            ]
+        })
         request_mock.delete(f"https://api.simply.com/2/my/products/{self.domain}/dns/records/123/", status_code=400,
                             text="Error")
 
