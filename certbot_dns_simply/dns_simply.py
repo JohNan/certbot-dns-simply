@@ -1,3 +1,5 @@
+"""DNS Authenticator for Simply.com"""
+
 import base64
 
 import requests
@@ -6,14 +8,18 @@ from certbot.plugins.dns_common import DNSAuthenticator
 
 
 class Authenticator(DNSAuthenticator):
+    """DNS Authenticator for Simply.com
+    This Authenticator uses the Simply.com API to fulfill a dns-01 challenge.
+    """
+    
     description = "Obtain certificates using a DNS TXT record (DNS-01 challenge) with Simply.com"
 
     def __init__(self, *args, **kwargs):
-        super(Authenticator, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
         self.credentials = None
 
     @classmethod
-    def add_parser_arguments(cls, add, default_propagation_seconds = 60):
+    def add_parser_arguments(cls, add, default_propagation_seconds=60):
         super(Authenticator, cls).add_parser_arguments(
             add, default_propagation_seconds=default_propagation_seconds
         )
@@ -48,6 +54,7 @@ class Authenticator(DNSAuthenticator):
 
 
 class SimplyClient:
+    """Encapsulates all communication with the Simply.com API."""
     API_URL = "https://api.simply.com/2"
 
     def __init__(self, account_name, api_key):
@@ -69,8 +76,8 @@ class SimplyClient:
         }
         try:
             self._request("POST", f"/my/products/{domain_name}/dns/records/", data)
-        except requests.exceptions.RequestException as e:
-            raise PluginError(f"Error adding TXT record: {e}")
+        except requests.exceptions.RequestException as exp:
+            raise PluginError(f"Error adding TXT record: {exp}")
 
     def del_txt_record(self, domain, validation_name, validation):
         sub_domain, domain_name = self._split_domain(validation_name, domain)
@@ -80,8 +87,8 @@ class SimplyClient:
             if record["type"] == "TXT" and record["name"] == sub_domain and record["data"] == validation:
                 try:
                     self._request("DELETE", f"/my/products/{domain_name}/dns/records/{record['record_id']}/")
-                except requests.exceptions.RequestException as e:
-                    raise PluginError(f"Error deleting TXT record: {e}")
+                except requests.exceptions.RequestException as exp:
+                    raise PluginError(f"Error deleting TXT record: {exp}")
 
     def _split_domain(self, validation_name, domain):
         validation_name = validation_name.replace(f".{domain}", "")
