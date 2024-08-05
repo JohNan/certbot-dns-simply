@@ -66,6 +66,7 @@ class SimplyClient:
         }
 
     def add_txt_record(self, domain, validation_name, validation):
+        """Add a TXT record using the supplied information."""
         sub_domain, domain_name = self._split_domain(validation_name, domain)
         data = {
             "name": sub_domain,
@@ -80,6 +81,7 @@ class SimplyClient:
             raise PluginError(f"Error adding TXT record: {exp}") from exp
 
     def del_txt_record(self, domain, validation_name, validation):
+        """Delete a TXT record using the supplied information."""
         sub_domain, domain_name = self._split_domain(validation_name, domain)
         records = self._request("GET", f"/my/products/{domain_name}/dns/records/")
 
