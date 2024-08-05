@@ -5,17 +5,15 @@ on:
   release:
     types: [published]
 
-permissions:
-  contents: read
-
 jobs:
   deploy:
     runs-on: ubuntu-latest
     environment:
       name: release
-      url: https://pypi.org/p/<your-pypi-project-name>
+      url: https://pypi.org/p/certbot-dns-simply
     permissions:
       id-token: write
+      contents: read
     steps:
     - uses: actions/checkout@v3
     - name: Set up Python
