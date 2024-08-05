@@ -58,15 +58,6 @@ class SimplyClient:
             "Content-Type": "application/json",
         }
 
-    def _base64_encode(self, data):
-        return base64.b64encode(data.encode()).decode()
-
-    def _request(self, method, endpoint, data=None):
-        url = f"{self.API_URL}{endpoint}"
-        response = requests.request(method, url, headers=self.headers, json=data)
-        response.raise_for_status()
-        return response.json()
-
     def add_txt_record(self, domain, validation_name, validation):
         sub_domain, domain_name = self._split_domain(validation_name, domain)
         data = {
@@ -95,3 +86,12 @@ class SimplyClient:
     def _split_domain(self, validation_name, domain):
         validation_name = validation_name.replace(f".{domain}", "")
         return validation_name, domain
+
+    def _base64_encode(self, data):
+        return base64.b64encode(data.encode()).decode()
+
+    def _request(self, method, endpoint, data=None):
+        url = f"{self.API_URL}{endpoint}"
+        response = requests.request(method, url, headers=self.headers, json=data)
+        response.raise_for_status()
+        return response.json()
