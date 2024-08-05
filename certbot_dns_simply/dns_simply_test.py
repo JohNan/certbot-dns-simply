@@ -101,6 +101,7 @@ class TestAuthenticator(
             DOMAIN, "_acme-challenge." + DOMAIN, mock.ANY
         )
 
+
 class TestSimplyClient(unittest.TestCase):
     """
     Test for Simply API Client
@@ -124,9 +125,10 @@ class TestSimplyClient(unittest.TestCase):
         request_mock.get(f"https://api.simply.com/2/my/products/{self.domain}/dns/records/", json=[
             {"record_id": 123, "type": "TXT", "name": self.sub_domain, "data": "test_validation"}
         ])
-        request_mock.delete(f"https://api.simply.com/2/my/products/{self.domain}/dns/records/123/", status_code=200, json=[
-            {}
-        ])
+        request_mock.delete(f"https://api.simply.com/2/my/products/{self.domain}/dns/records/123/", status_code=200,
+                            json=[
+                                {}
+                            ])
 
         self.client.del_txt_record(self.domain, f"{self.sub_domain}.{self.domain}", "test_validation")
         self.assertTrue(request_mock.called)
@@ -146,7 +148,7 @@ class TestSimplyClient(unittest.TestCase):
             {"record_id": 123, "type": "TXT", "name": self.sub_domain, "data": "test_validation"}
         ])
         request_mock.delete(f"https://api.simply.com/2/my/products/{self.domain}/dns/records/123/", status_code=400,
-                    text="Error")
+                            text="Error")
 
         with self.assertRaises(PluginError):
             self.client.del_txt_record(self.domain, f"{self.sub_domain}.{self.domain}", "test_validation")
