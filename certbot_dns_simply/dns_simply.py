@@ -1,6 +1,7 @@
 """DNS Authenticator for Simply.com"""
 
 import base64
+from contextlib import AbstractContextManager
 
 import requests
 from certbot.errors import PluginError
@@ -53,8 +54,9 @@ class Authenticator(DNSAuthenticator):
         )
 
 
-class SimplyClient:
+class SimplyClient(AbstractContextManager):
     """Encapsulates all communication with the Simply.com API."""
+
     API_URL = "https://api.simply.com/2"
 
     def __init__(self, account_name, api_key):
@@ -64,6 +66,14 @@ class SimplyClient:
             "Authorization": f"Basic {self._base64_encode(f'{account_name}:{api_key}')}",
             "Content-Type": "application/json",
         }
+        self.session = requests.Session()
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, exc_type, exc_value, traceback) -> bool:
+        self.session.close()
+        return False
 
     def add_txt_record(self, domain, validation_name, validation):
         """Add a TXT record using the supplied information."""
@@ -83,9 +93,9 @@ class SimplyClient:
     def del_txt_record(self, domain, validation_name, validation):
         """Delete a TXT record using the supplied information."""
         sub_domain, domain_name = self._split_domain(validation_name, domain)
-        records = self._request("GET", f"/my/products/{domain_name}/dns/records/")
+        response = self._request("GET", f"/my/products/{domain_name}/dns/records/")
 
-        for record in records:
+        for record in response["records"]:
             if record["type"] == "TXT" and record["name"] == sub_domain and record["data"] == validation:
                 try:
                     self._request("DELETE", f"/my/products/{domain_name}/dns/records/{record['record_id']}/")
