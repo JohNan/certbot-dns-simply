@@ -29,7 +29,6 @@ version-resolver:
       - 'patch'
   default: patch
 template: |
-  [![Downloads for this release](https://img.shields.io/github/downloads/JohNan/pyflichub-tcpclient/v$RESOLVED_VERSION/total.svg)](https://github.com/JohNan/pyflichub-tcpclient/releases/v$RESOLVED_VERSION)
   ## Changes
 
   $CHANGES
