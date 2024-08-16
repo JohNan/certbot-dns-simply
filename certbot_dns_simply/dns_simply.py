@@ -57,6 +57,7 @@ class Authenticator(DNSAuthenticator):
 
 
 def get_product_name(domain):
+    """Extract the product name from the domain."""
     parts = domain.split(".")
     if len(parts) < 2:
         return domain
@@ -77,9 +78,6 @@ class SimplyClient(AbstractContextManager):
             "Content-Type": "application/json",
         }
         self.session = requests.Session()
-
-    def __enter__(self):
-        return self
 
     def __exit__(self, exc_type, exc_value, traceback) -> bool | None:
         self.session.close()
