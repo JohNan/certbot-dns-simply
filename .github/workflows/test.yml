@@ -4,7 +4,7 @@ on: [pull_request]
 permissions:
   contents: read
   pull-requests: write
-  
+
 concurrency:
   group: build-test-${{ github.event.pull_request.number || github.ref }}
   cancel-in-progress: true
