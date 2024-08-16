@@ -79,9 +79,11 @@ class SimplyClient(AbstractContextManager):
         }
         self.session = requests.Session()
 
-    def __exit__(self, exc_type, exc_value, traceback) -> bool | None:
+    def __enter__(self):
+        return self
+
+    def __exit__(self, exc_type, exc_value, traceback):
         self.session.close()
-        return None
 
     def add_txt_record(self, domain, validation_name, validation):
         """Add a TXT record using the supplied information."""
