@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "certbot-dns-simply"
-version = "0.1.0"
+version = "0.1.1"
 description = "Simply.com DNS Authenticator plugin for Certbot"
 readme = "README.md"
 license = {text = "Apache-2.0"}
@@ -40,6 +40,7 @@ dev = [
     "pytest",
     "pytest-cov",
     "tox",
+    "pre-commit",
 ]
 
 [project.entry-points."certbot.plugins"]

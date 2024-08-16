@@ -13,7 +13,9 @@ class Authenticator(DNSAuthenticator):
     This Authenticator uses the Simply.com API to fulfill a dns-01 challenge.
     """
 
-    description = "Obtain certificates using a DNS TXT record (DNS-01 challenge) with Simply.com"
+    description = (
+        "Obtain certificates using a DNS TXT record (DNS-01 challenge) with Simply.com"
+    )
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -54,6 +56,15 @@ class Authenticator(DNSAuthenticator):
         )
 
 
+def get_product_name(domain):
+    """Extract the product name from the domain."""
+    parts = domain.split(".")
+    if len(parts) < 2:
+        return domain
+
+    return ".".join(parts[-2:])
+
+
 class SimplyClient(AbstractContextManager):
     """Encapsulates all communication with the Simply.com API."""
 
@@ -71,46 +82,58 @@ class SimplyClient(AbstractContextManager):
     def __enter__(self):
         return self
 
-    def __exit__(self, exc_type, exc_value, traceback) -> bool:
+    def __exit__(self, exc_type, exc_value, traceback):
         self.session.close()
-        return False
 
     def add_txt_record(self, domain, validation_name, validation):
         """Add a TXT record using the supplied information."""
-        sub_domain, domain_name = self._split_domain(validation_name, domain)
+        product = get_product_name(domain)
+
         data = {
-            "name": sub_domain,
+            "name": validation_name,
             "type": "TXT",
             "data": validation,
             "priority": 0,
             "ttl": 3600,
         }
         try:
-            self._request("POST", f"/my/products/{domain_name}/dns/records/", data)
+            self._request("POST", f"/my/products/{product}/dns/records/", data)
         except requests.exceptions.RequestException as exp:
             raise PluginError(f"Error adding TXT record: {exp}") from exp
 
     def del_txt_record(self, domain, validation_name, validation):
         """Delete a TXT record using the supplied information."""
-        sub_domain, domain_name = self._split_domain(validation_name, domain)
-        response = self._request("GET", f"/my/products/{domain_name}/dns/records/")
+        product = get_product_name(domain)
+
+        response = self._request("GET", f"/my/products/{product}/dns/records/")
 
         for record in response["records"]:
-            if record["type"] == "TXT" and record["name"] == sub_domain and record["data"] == validation:
+            if (
+                record["type"] == "TXT"
+                and record["name"] == validation_name
+                and record["data"] == validation
+            ):
                 try:
-                    self._request("DELETE", f"/my/products/{domain_name}/dns/records/{record['record_id']}/")
+                    self._request(
+                        "DELETE",
+                        f"/my/products/{product}/dns/records/{record['record_id']}/",
+                    )
                 except requests.exceptions.RequestException as exp:
                     raise PluginError(f"Error deleting TXT record: {exp}") from exp
 
-    def _split_domain(self, validation_name, domain):
+    @staticmethod
+    def _split_domain(validation_name, domain):
         validation_name = validation_name.replace(f".{domain}", "")
         return validation_name, domain
 
-    def _base64_encode(self, data):
+    @staticmethod
+    def _base64_encode(data):
         return base64.b64encode(data.encode()).decode()
 
     def _request(self, method, endpoint, data=None):
         url = f"{self.API_URL}{endpoint}"
-        response = requests.request(method, url, headers=self.headers, json=data, timeout=30)
+        response = requests.request(
+            method, url, headers=self.headers, json=data, timeout=30
+        )
         response.raise_for_status()
         return response.json()
