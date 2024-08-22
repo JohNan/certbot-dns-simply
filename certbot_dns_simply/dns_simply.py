@@ -87,7 +87,7 @@ class SimplyClient(AbstractContextManager):
 
     def add_txt_record(self, domain, validation_name, validation):
         """Add a TXT record using the supplied information."""
-        product = get_product_name(domain)
+        product = self._find_product_id(domain)
 
         data = {
             "name": validation_name,
@@ -103,7 +103,7 @@ class SimplyClient(AbstractContextManager):
 
     def del_txt_record(self, domain, validation_name, validation):
         """Delete a TXT record using the supplied information."""
-        product = get_product_name(domain)
+        product = self._find_product_id(domain)
 
         response = self._request("GET", f"/my/products/{product}/dns/records/")
 
@@ -120,6 +120,15 @@ class SimplyClient(AbstractContextManager):
                     )
                 except requests.exceptions.RequestException as exp:
                     raise PluginError(f"Error deleting TXT record: {exp}") from exp
+
+    def _find_product_id(self, domain: str):
+        product_name = get_product_name(domain)
+        response = self._request("GET", "/my/products/")
+        for product in response["products"]:
+            if "domain" in product and product["domain"]["name"] == product_name:
+                return product["object"]
+
+        raise PluginError(f"No product for domain {domain} found")
 
     @staticmethod
     def _split_domain(validation_name, domain):

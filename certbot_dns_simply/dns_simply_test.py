@@ -10,7 +10,7 @@ from certbot.plugins import dns_test_common
 from certbot.plugins.dns_test_common import DOMAIN
 from certbot.tests import util as test_util
 
-from certbot_dns_simply.dns_simply import Authenticator, SimplyClient, get_product_name
+from certbot_dns_simply.dns_simply import Authenticator, SimplyClient
 
 patch_display_util = test_util.patch_display_util
 
@@ -107,15 +107,17 @@ class TestSimplyClient(unittest.TestCase):
     def setUp(self):
         self.client = SimplyClient("account_name", "api_key")
         self.domain = "example.com"
+        self.object_id = "<object_id>"
         self.acme_challenge = "_acme-challenge"
 
     @requests_mock.Mocker()
     def test_add_txt_record(self, request_mock):
         request_mock.post(
-            f"https://api.simply.com/2/my/products/{get_product_name(self.domain)}/dns/records/",
+            f"https://api.simply.com/2/my/products/{self.object_id}/dns/records/",
             status_code=200,
             json=[{}],
         )
+        self._my_products_get_mock(request_mock)
         self.client.add_txt_record(
             self.domain, f"{self.acme_challenge}.{self.domain}", "test_validation"
         )
@@ -125,10 +127,11 @@ class TestSimplyClient(unittest.TestCase):
     def test_add_txt_record_subdomain(self, request_mock):
         self.domain = "foo.example.com"
         request_mock.post(
-            f"https://api.simply.com/2/my/products/{get_product_name(self.domain)}/dns/records/",
+            f"https://api.simply.com/2/my/products/{self.object_id}/dns/records/",
             status_code=200,
             json=[{}],
         )
+        self._my_products_get_mock(request_mock)
         self.client.add_txt_record(
             self.domain, f"{self.acme_challenge}.{self.domain}", "test_validation"
         )
@@ -138,120 +141,24 @@ class TestSimplyClient(unittest.TestCase):
     def test_add_txt_record_wildcard(self, request_mock):
         self.domain = "*.example.com"
         request_mock.post(
-            f"https://api.simply.com/2/my/products/{get_product_name(self.domain)}/dns/records/",
+            f"https://api.simply.com/2/my/products/{self.object_id}/dns/records/",
             status_code=200,
             json=[{}],
         )
+        self._my_products_get_mock(request_mock)
         self.client.add_txt_record(
             self.domain, f"{self.acme_challenge}.{self.domain}", "test_validation"
         )
         self.assertTrue(request_mock.called)
 
     @requests_mock.Mocker()
-    def test_del_txt_record(self, request_mock):
-        validation_name = f"{self.acme_challenge}.{self.domain}"
-        request_mock.get(
-            f"https://api.simply.com/2/my/products/{get_product_name(self.domain)}/dns/records/",
-            json={
-                "records": [
-                    {
-                        "record_id": 123,
-                        "type": "TXT",
-                        "name": validation_name,
-                        "data": "test_validation",
-                    },
-                    {
-                        "record_id": 333,
-                        "type": "NS",
-                        "name": "@",
-                        "data": "ns1.simply.com",
-                    },
-                ]
-            },
-        )
-        request_mock.delete(
-            f"https://api.simply.com/2/my/products/{get_product_name(self.domain)}/dns/records/123/",
-            status_code=200,
-            json=[{}],
-        )
-
-        self.client.del_txt_record(self.domain, validation_name, "test_validation")
-        self.assertTrue(request_mock.call_count == 2)
-        self.assertTrue(request_mock.request_history[1].method == "DELETE")
-
-    @requests_mock.Mocker()
-    def test_del_txt_record_subdomain(self, request_mock):
-        self.domain = "foo.example.com"
-        validation_name = f"{self.acme_challenge}.{self.domain}"
-        request_mock.get(
-            f"https://api.simply.com/2/my/products/{get_product_name(self.domain)}/dns/records/",
-            json={
-                "records": [
-                    {
-                        "record_id": 123,
-                        "type": "TXT",
-                        "name": validation_name,
-                        "data": "test_validation",
-                    },
-                    {
-                        "record_id": 333,
-                        "type": "NS",
-                        "name": "@",
-                        "data": "ns1.simply.com",
-                    },
-                ]
-            },
-        )
-        request_mock.delete(
-            f"https://api.simply.com/2/my/products/{get_product_name(self.domain)}/dns/records/123/",
-            status_code=200,
-            json=[{}],
-        )
-
-        self.client.del_txt_record(self.domain, validation_name, "test_validation")
-        self.assertTrue(request_mock.call_count == 2)
-        self.assertTrue(request_mock.request_history[1].method == "DELETE")
-
-    @requests_mock.Mocker()
-    def test_del_txt_record_wildcard(self, request_mock):
-        self.domain = "*.example.com"
-        validation_name = f"{self.acme_challenge}.{self.domain}"
-        request_mock.get(
-            f"https://api.simply.com/2/my/products/{get_product_name(self.domain)}/dns/records/",
-            json={
-                "records": [
-                    {
-                        "record_id": 123,
-                        "type": "TXT",
-                        "name": validation_name,
-                        "data": "test_validation",
-                    },
-                    {
-                        "record_id": 333,
-                        "type": "NS",
-                        "name": "@",
-                        "data": "ns1.simply.com",
-                    },
-                ]
-            },
-        )
-        request_mock.delete(
-            f"https://api.simply.com/2/my/products/{get_product_name(self.domain)}/dns/records/123/",
-            status_code=200,
-            json=[{}],
-        )
-
-        self.client.del_txt_record(self.domain, validation_name, "test_validation")
-        self.assertTrue(request_mock.call_count == 2)
-        self.assertTrue(request_mock.request_history[1].method == "DELETE")
-
-    @requests_mock.Mocker()
     def test_add_txt_record_fail(self, request_mock):
         request_mock.post(
-            f"https://api.simply.com/2/my/products/{get_product_name(self.domain)}/dns/records/",
+            f"https://api.simply.com/2/my/products/{self.object_id}/dns/records/",
             status_code=400,
             json=[{}],
         )
+        self._my_products_get_mock(request_mock)
 
         with self.assertRaises(PluginError):
             self.client.add_txt_record(
@@ -259,10 +166,10 @@ class TestSimplyClient(unittest.TestCase):
             )
 
     @requests_mock.Mocker()
-    def test_del_txt_record_fail(self, request_mock):
+    def test_del_txt_record(self, request_mock):
         validation_name = f"{self.acme_challenge}.{self.domain}"
         request_mock.get(
-            f"https://api.simply.com/2/my/products/{get_product_name(self.domain)}/dns/records/",
+            f"https://api.simply.com/2/my/products/{self.object_id}/dns/records/",
             json={
                 "records": [
                     {
@@ -280,14 +187,182 @@ class TestSimplyClient(unittest.TestCase):
                 ]
             },
         )
+        self._my_products_get_mock(request_mock)
+        self._remove_record_delete_mock(request_mock)
+
+        self.client.del_txt_record(self.domain, validation_name, "test_validation")
+        self.assertTrue(request_mock.call_count == 3)
+        self.assertTrue(request_mock.request_history[0].method == "GET")
+        self.assertTrue(request_mock.request_history[1].method == "GET")
+        self.assertTrue(request_mock.request_history[2].method == "DELETE")
+
+    @requests_mock.Mocker()
+    def test_del_txt_record_subdomain(self, request_mock):
+        self.domain = "foo.example.com"
+        validation_name = f"{self.acme_challenge}.{self.domain}"
+        request_mock.get(
+            f"https://api.simply.com/2/my/products/{self.object_id}/dns/records/",
+            json={
+                "records": [
+                    {
+                        "record_id": 123,
+                        "type": "TXT",
+                        "name": validation_name,
+                        "data": "test_validation",
+                    },
+                    {
+                        "record_id": 333,
+                        "type": "NS",
+                        "name": "@",
+                        "data": "ns1.simply.com",
+                    },
+                ]
+            },
+        )
+        self._my_products_get_mock(request_mock)
+        self._remove_record_delete_mock(request_mock)
+
+        self.client.del_txt_record(self.domain, validation_name, "test_validation")
+        self.assertTrue(request_mock.call_count == 3)
+        self.assertTrue(request_mock.request_history[0].method == "GET")
+        self.assertTrue(request_mock.request_history[1].method == "GET")
+        self.assertTrue(request_mock.request_history[2].method == "DELETE")
+
+    @requests_mock.Mocker()
+    def test_del_txt_record_wildcard(self, request_mock):
+        self.domain = "*.example.com"
+        validation_name = f"{self.acme_challenge}.{self.domain}"
+        request_mock.get(
+            f"https://api.simply.com/2/my/products/{self.object_id}/dns/records/",
+            json={
+                "records": [
+                    {
+                        "record_id": 123,
+                        "type": "TXT",
+                        "name": validation_name,
+                        "data": "test_validation",
+                    },
+                    {
+                        "record_id": 333,
+                        "type": "NS",
+                        "name": "@",
+                        "data": "ns1.simply.com",
+                    },
+                ]
+            },
+        )
+        self._my_products_get_mock(request_mock)
+        self._remove_record_delete_mock(request_mock)
+
+        self.client.del_txt_record(self.domain, validation_name, "test_validation")
+        self.assertTrue(request_mock.call_count == 3)
+        self.assertTrue(request_mock.request_history[0].method == "GET")
+        self.assertTrue(request_mock.request_history[1].method == "GET")
+        self.assertTrue(request_mock.request_history[2].method == "DELETE")
+
+    @requests_mock.Mocker()
+    def test_del_txt_record_fail(self, request_mock):
+        validation_name = f"{self.acme_challenge}.{self.domain}"
+        request_mock.get(
+            f"https://api.simply.com/2/my/products/{self.object_id}/dns/records/",
+            json={
+                "records": [
+                    {
+                        "record_id": 123,
+                        "type": "TXT",
+                        "name": validation_name,
+                        "data": "test_validation",
+                    },
+                    {
+                        "record_id": 333,
+                        "type": "NS",
+                        "name": "@",
+                        "data": "ns1.simply.com",
+                    },
+                ]
+            },
+        )
+        self._my_products_get_mock(request_mock)
         request_mock.delete(
-            f"https://api.simply.com/2/my/products/{get_product_name(self.domain)}/dns/records/123/",
+            f"https://api.simply.com/2/my/products/{self.object_id}/dns/records/123/",
             status_code=400,
             text="Error",
         )
 
         with self.assertRaises(PluginError):
             self.client.del_txt_record(self.domain, validation_name, "test_validation")
+
+    @requests_mock.Mocker()
+    def test_add_txt_record_domain_missing(self, request_mock):
+        request_mock.post(
+            f"https://api.simply.com/2/my/products/{self.object_id}/dns/records/",
+            status_code=400,
+            json=[{}],
+        )
+
+        self._my_products_get_mock_domain_missing(request_mock)
+
+        with self.assertRaises(PluginError):
+            self.client.add_txt_record(
+                self.domain, f"{self.acme_challenge}.{self.domain}", "test_validation"
+            )
+
+    def _my_products_get_mock(self, request_mock):
+        request_mock.get(
+            "https://api.simply.com/2/my/products/",
+            status_code=200,
+            json={
+                "products": [
+                    {
+                        "object": f"{self.object_id}",
+                        "name": "example.com",
+                        "autorenew": "true",
+                        "cancelled": "false",
+                        "domain": {"name": "example.com", "name_idn": "example.com"},
+                        "product": {
+                            "id": 1,
+                            "name": "dnsservice",
+                            "date_created": "1695716709",
+                            "date_expire": "false",
+                        },
+                    }
+                ],
+                "status": 200,
+                "message": "success",
+            },
+        )
+
+    def _my_products_get_mock_domain_missing(self, request_mock):
+        request_mock.get(
+            "https://api.simply.com/2/my/products/",
+            status_code=200,
+            json={
+                "products": [
+                    {
+                        "object": f"{self.object_id}",
+                        "name": "example.com",
+                        "autorenew": "true",
+                        "cancelled": "false",
+                        "domain": {"name": "missing.com", "name_idn": "missing.com"},
+                        "product": {
+                            "id": 1,
+                            "name": "dnsservice",
+                            "date_created": "1695716709",
+                            "date_expire": "false",
+                        },
+                    }
+                ],
+                "status": 200,
+                "message": "success",
+            },
+        )
+
+    def _remove_record_delete_mock(self, request_mock):
+        request_mock.delete(
+            f"https://api.simply.com/2/my/products/{self.object_id}/dns/records/123/",
+            status_code=200,
+            json=[{}],
+        )
 
 
 if __name__ == "__main__":
