@@ -125,13 +125,11 @@ class SimplyClient(AbstractContextManager):
         base_domain_guesses = dns_common.base_domain_name_guesses(domain)
         response = self._request("GET", "/my/products/")
         for product in response["products"]:
-            if "domain" in product and product["domain"]["name"] in base_domain_guesses:
-                return product["object"]
-            elif (
-                "domain" in product
-                and product["domain"]["name_idn"] in base_domain_guesses
-            ):
-                return product["object"]
+            if "domain" in product:
+                if product["domain"]["name"] in base_domain_guesses:
+                    return product["object"]
+                if product["domain"]["name_idn"] in base_domain_guesses:
+                    return product["object"]
 
         raise PluginError(
             f"No product is matching {base_domain_guesses} for domain {domain}"
