@@ -5,10 +5,10 @@ from contextlib import AbstractContextManager
 
 import requests
 from certbot.errors import PluginError
-from certbot.plugins.dns_common import DNSAuthenticator
+from certbot.plugins import dns_common
 
 
-class Authenticator(DNSAuthenticator):
+class Authenticator(dns_common.DNSAuthenticator):
     """DNS Authenticator for Simply.com
     This Authenticator uses the Simply.com API to fulfill a dns-01 challenge.
     """
@@ -122,13 +122,20 @@ class SimplyClient(AbstractContextManager):
                     raise PluginError(f"Error deleting TXT record: {exp}") from exp
 
     def _find_product_id(self, domain: str):
-        product_name = get_product_name(domain)
+        base_domain_guesses = dns_common.base_domain_name_guesses(domain)
         response = self._request("GET", "/my/products/")
         for product in response["products"]:
-            if "domain" in product and product["domain"]["name"] == product_name:
+            if "domain" in product and product["domain"]["name"] in base_domain_guesses:
+                return product["object"]
+            elif (
+                "domain" in product
+                and product["domain"]["name_idn"] in base_domain_guesses
+            ):
                 return product["object"]
 
-        raise PluginError(f"No product for domain {domain} found")
+        raise PluginError(
+            f"No product is matching {base_domain_guesses} for domain {domain}"
+        )
 
     @staticmethod
     def _split_domain(validation_name, domain):
