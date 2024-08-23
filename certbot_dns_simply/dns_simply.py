@@ -5,10 +5,10 @@ from contextlib import AbstractContextManager
 
 import requests
 from certbot.errors import PluginError
-from certbot.plugins.dns_common import DNSAuthenticator
+from certbot.plugins import dns_common
 
 
-class Authenticator(DNSAuthenticator):
+class Authenticator(dns_common.DNSAuthenticator):
     """DNS Authenticator for Simply.com
     This Authenticator uses the Simply.com API to fulfill a dns-01 challenge.
     """
@@ -87,7 +87,7 @@ class SimplyClient(AbstractContextManager):
 
     def add_txt_record(self, domain, validation_name, validation):
         """Add a TXT record using the supplied information."""
-        product = get_product_name(domain)
+        product = self._find_product_id(domain)
 
         data = {
             "name": validation_name,
@@ -103,7 +103,7 @@ class SimplyClient(AbstractContextManager):
 
     def del_txt_record(self, domain, validation_name, validation):
         """Delete a TXT record using the supplied information."""
-        product = get_product_name(domain)
+        product = self._find_product_id(domain)
 
         response = self._request("GET", f"/my/products/{product}/dns/records/")
 
@@ -120,6 +120,20 @@ class SimplyClient(AbstractContextManager):
                     )
                 except requests.exceptions.RequestException as exp:
                     raise PluginError(f"Error deleting TXT record: {exp}") from exp
+
+    def _find_product_id(self, domain: str):
+        base_domain_guesses = dns_common.base_domain_name_guesses(domain)
+        response = self._request("GET", "/my/products/")
+        for product in response["products"]:
+            if "domain" in product:
+                if product["domain"]["name"] in base_domain_guesses:
+                    return product["object"]
+                if product["domain"]["name_idn"] in base_domain_guesses:
+                    return product["object"]
+
+        raise PluginError(
+            f"No product is matching {base_domain_guesses} for domain {domain}"
+        )
 
     @staticmethod
     def _split_domain(validation_name, domain):
