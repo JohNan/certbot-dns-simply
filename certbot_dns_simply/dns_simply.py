@@ -81,7 +81,7 @@ class SimplyClient(AbstractContextManager):
 
     def add_txt_record(self, domain, validation_name, validation):
         """Add a TXT record using the supplied information."""
-        product = self._find_product_id(domain)
+        product, _zone = self._find_product(domain)
 
         data = {
             "name": validation_name,
@@ -94,15 +94,22 @@ class SimplyClient(AbstractContextManager):
 
     def del_txt_record(self, domain, validation_name, validation):
         """Delete a TXT record using the supplied information."""
-        product = self._find_product_id(domain)
+        product, zone = self._find_product(domain)
 
         response = self._request("GET", f"/my/products/{product}/dns/records/")
+
+        # The Simply.com API returns record names relative to the zone, e.g.
+        # `_acme-challenge.foo` for `_acme-challenge.foo.example.com` on the
+        # `example.com` product. Accept both forms so cleanup works regardless
+        # of how the API normalises the name on read.
+        relative_name = validation_name.removesuffix(f".{zone}")
+        accepted_names = {validation_name, relative_name}
 
         matching = [
             record
             for record in response.get("records", [])
             if record.get("type") == "TXT"
-            and record.get("name") == validation_name
+            and record.get("name") in accepted_names
             and record.get("data") == validation
         ]
 
@@ -120,17 +127,18 @@ class SimplyClient(AbstractContextManager):
                 f"/my/products/{product}/dns/records/{record['record_id']}/",
             )
 
-    def _find_product_id(self, domain: str):
+    def _find_product(self, domain: str):
+        """Return (object_id, matched_zone_name) for the product that hosts ``domain``."""
         base_domain_guesses = dns_common.base_domain_name_guesses(domain)
         response = self._request("GET", "/my/products/")
         for product in response.get("products", []):
             product_domain = product.get("domain")
             if not product_domain:
                 continue
-            if product_domain.get("name") in base_domain_guesses:
-                return product["object"]
-            if product_domain.get("name_idn") in base_domain_guesses:
-                return product["object"]
+            for key in ("name", "name_idn"):
+                zone = product_domain.get(key)
+                if zone and zone in base_domain_guesses:
+                    return product["object"], zone
 
         raise PluginError(
             f"No product is matching {base_domain_guesses} for domain {domain}"
