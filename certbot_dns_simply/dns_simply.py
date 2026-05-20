@@ -1,11 +1,16 @@
 """DNS Authenticator for Simply.com"""
 
-import base64
+import logging
 from contextlib import AbstractContextManager
 
 import requests
 from certbot.errors import PluginError
 from certbot.plugins import dns_common
+from requests.auth import HTTPBasicAuth
+
+logger = logging.getLogger(__name__)
+
+ACME_CHALLENGE_TTL = 60
 
 
 class Authenticator(dns_common.DNSAuthenticator):
@@ -56,15 +61,6 @@ class Authenticator(dns_common.DNSAuthenticator):
         )
 
 
-def get_product_name(domain):
-    """Extract the product name from the domain."""
-    parts = domain.split(".")
-    if len(parts) < 2:
-        return domain
-
-    return ".".join(parts[-2:])
-
-
 class SimplyClient(AbstractContextManager):
     """Encapsulates all communication with the Simply.com API."""
 
@@ -73,11 +69,9 @@ class SimplyClient(AbstractContextManager):
     def __init__(self, account_name, api_key):
         self.account_name = account_name
         self.api_key = api_key
-        self.headers = {
-            "Authorization": f"Basic {self._base64_encode(f'{account_name}:{api_key}')}",
-            "Content-Type": "application/json",
-        }
         self.session = requests.Session()
+        self.session.auth = HTTPBasicAuth(account_name, api_key)
+        self.session.headers.update({"Content-Type": "application/json"})
 
     def __enter__(self):
         return self
@@ -94,12 +88,9 @@ class SimplyClient(AbstractContextManager):
             "type": "TXT",
             "data": validation,
             "priority": 0,
-            "ttl": 3600,
+            "ttl": ACME_CHALLENGE_TTL,
         }
-        try:
-            self._request("POST", f"/my/products/{product}/dns/records/", data)
-        except requests.exceptions.RequestException as exp:
-            raise PluginError(f"Error adding TXT record: {exp}") from exp
+        self._request("POST", f"/my/products/{product}/dns/records/", data)
 
     def del_txt_record(self, domain, validation_name, validation):
         """Delete a TXT record using the supplied information."""
@@ -107,47 +98,77 @@ class SimplyClient(AbstractContextManager):
 
         response = self._request("GET", f"/my/products/{product}/dns/records/")
 
-        for record in response["records"]:
-            if (
-                record["type"] == "TXT"
-                and record["name"] == validation_name
-                and record["data"] == validation
-            ):
-                try:
-                    self._request(
-                        "DELETE",
-                        f"/my/products/{product}/dns/records/{record['record_id']}/",
-                    )
-                except requests.exceptions.RequestException as exp:
-                    raise PluginError(f"Error deleting TXT record: {exp}") from exp
+        matching = [
+            record
+            for record in response.get("records", [])
+            if record.get("type") == "TXT"
+            and record.get("name") == validation_name
+            and record.get("data") == validation
+        ]
+
+        if not matching:
+            logger.warning(
+                "No matching TXT record found to delete for %s on product %s",
+                validation_name,
+                product,
+            )
+            return
+
+        for record in matching:
+            self._request(
+                "DELETE",
+                f"/my/products/{product}/dns/records/{record['record_id']}/",
+            )
 
     def _find_product_id(self, domain: str):
         base_domain_guesses = dns_common.base_domain_name_guesses(domain)
         response = self._request("GET", "/my/products/")
-        for product in response["products"]:
-            if "domain" in product:
-                if product["domain"]["name"] in base_domain_guesses:
-                    return product["object"]
-                if product["domain"]["name_idn"] in base_domain_guesses:
-                    return product["object"]
+        for product in response.get("products", []):
+            product_domain = product.get("domain")
+            if not product_domain:
+                continue
+            if product_domain.get("name") in base_domain_guesses:
+                return product["object"]
+            if product_domain.get("name_idn") in base_domain_guesses:
+                return product["object"]
 
         raise PluginError(
             f"No product is matching {base_domain_guesses} for domain {domain}"
         )
 
-    @staticmethod
-    def _split_domain(validation_name, domain):
-        validation_name = validation_name.replace(f".{domain}", "")
-        return validation_name, domain
-
-    @staticmethod
-    def _base64_encode(data):
-        return base64.b64encode(data.encode()).decode()
-
     def _request(self, method, endpoint, data=None):
         url = f"{self.API_URL}{endpoint}"
-        response = requests.request(
-            method, url, headers=self.headers, json=data, timeout=30
-        )
-        response.raise_for_status()
-        return response.json()
+        try:
+            response = self.session.request(method, url, json=data, timeout=30)
+        except requests.exceptions.RequestException as exp:
+            raise PluginError(
+                f"Simply.com API request failed ({method} {endpoint}): {exp}"
+            ) from exp
+
+        if not response.ok:
+            raise PluginError(
+                f"Simply.com API error ({method} {endpoint}, HTTP {response.status_code}): "
+                f"{_extract_error_message(response)}"
+            )
+
+        try:
+            return response.json()
+        except ValueError as exp:
+            raise PluginError(
+                f"Simply.com API returned non-JSON response ({method} {endpoint}): {exp}"
+            ) from exp
+
+
+def _extract_error_message(response: requests.Response) -> str:
+    """Pull a human-readable message out of a Simply.com error response."""
+    try:
+        body = response.json()
+    except ValueError:
+        return response.text.strip() or "no response body"
+
+    if isinstance(body, dict):
+        for key in ("error", "message"):
+            value = body.get(key)
+            if isinstance(value, str) and value:
+                return value
+    return response.text.strip() or "no response body"

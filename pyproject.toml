@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "certbot-dns-simply"
-version = "0.1.2"
+version = "0.2.0"
 description = "Simply.com DNS Authenticator plugin for Certbot"
 readme = "README.md"
 license = {text = "Apache-2.0"}
@@ -32,13 +32,13 @@ classifiers = [
 dependencies = [
     "certbot",
     "requests",
-    "requests-mock",
 ]
 
 [project.optional-dependencies]
 dev = [
     "pytest",
     "pytest-cov",
+    "requests-mock",
     "tox",
     "pre-commit",
 ]
