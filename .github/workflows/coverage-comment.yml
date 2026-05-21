@@ -34,7 +34,7 @@ jobs:
           name: coverage-xml
           path: coverage-artifact
           run-id: ${{ github.event.workflow_run.id }}
-          github-token: ${{ github.token }}
+          github-token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Parse coverage xml
         id: coverage
@@ -49,6 +49,7 @@ jobs:
           if not coverage_path.is_file():
             raise SystemExit("coverage.xml missing from coverage-xml artifact.")
 
+          # Keep a strict size cap because this file comes from an untrusted PR workflow.
           max_size_bytes = 2 * 1024 * 1024
           if coverage_path.stat().st_size > max_size_bytes:
             raise SystemExit("coverage.xml is too large to parse safely.")
@@ -92,7 +93,7 @@ jobs:
             _From workflow run: ${process.env.WORKFLOW_RUN_URL}_`;
 
             const issue_number = Number(process.env.PULL_REQUEST_NUMBER);
-            const { data: comments } = await github.rest.issues.listComments({
+            const comments = await github.paginate(github.rest.issues.listComments, {
               owner: context.repo.owner,
               repo: context.repo.repo,
               issue_number,
