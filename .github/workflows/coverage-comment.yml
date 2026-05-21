@@ -1,0 +1,123 @@
+name: Coverage Comment
+
+on:
+  workflow_run:
+    workflows: ["Tests, Coverage"]
+    types: [completed]
+
+permissions:
+  actions: read
+  pull-requests: write
+
+jobs:
+  coverage-comment:
+    if: >
+      github.event.workflow_run.conclusion == 'success' &&
+      github.event.workflow_run.event == 'pull_request'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Resolve pull request
+        id: pr
+        uses: actions/github-script@v8
+        with:
+          script: |
+            const prs = context.payload.workflow_run.pull_requests || [];
+            if (prs.length !== 1) {
+              core.setFailed(`Expected exactly one PR for workflow run, got ${prs.length}.`);
+              return;
+            }
+            core.setOutput("number", String(prs[0].number));
+
+      - name: Download coverage artifact
+        uses: actions/download-artifact@v4.1.3
+        with:
+          name: coverage-xml
+          path: coverage-artifact
+          run-id: ${{ github.event.workflow_run.id }}
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Parse coverage xml
+        id: coverage
+        shell: python
+        run: |
+          import os
+          from decimal import Decimal, InvalidOperation, ROUND_HALF_UP
+          from pathlib import Path
+          import xml.etree.ElementTree as ET
+
+          coverage_path = Path("coverage-artifact/coverage.xml")
+          if not coverage_path.is_file():
+            raise SystemExit("coverage.xml missing from coverage-xml artifact.")
+
+          # Keep a strict size cap because this file comes from an untrusted PR workflow.
+          max_size_bytes = 2 * 1024 * 1024
+          if coverage_path.stat().st_size > max_size_bytes:
+            raise SystemExit("coverage.xml is too large to parse safely.")
+
+          root = ET.parse(coverage_path).getroot()
+          line_rate = root.attrib.get("line-rate")
+          lines_covered = root.attrib.get("lines-covered")
+          lines_valid = root.attrib.get("lines-valid")
+
+          if line_rate is None or lines_covered is None or lines_valid is None:
+            raise SystemExit("coverage.xml is missing required coverage attributes.")
+
+          try:
+            percent = (Decimal(line_rate) * Decimal("100")).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
+            covered = int(lines_covered)
+            valid = int(lines_valid)
+          except (InvalidOperation, ValueError):
+            raise SystemExit("coverage.xml contains invalid numeric values.")
+
+          with open(os.environ["GITHUB_OUTPUT"], "a", encoding="utf-8") as output:
+            output.write(f"percent={percent}\n")
+            output.write(f"covered={covered}\n")
+            output.write(f"valid={valid}\n")
+
+      - name: Post or update pull request coverage comment
+        uses: actions/github-script@v8
+        env:
+          COVERAGE_PERCENT: ${{ steps.coverage.outputs.percent }}
+          COVERAGE_LINES_COVERED: ${{ steps.coverage.outputs.covered }}
+          COVERAGE_LINES_VALID: ${{ steps.coverage.outputs.valid }}
+          PULL_REQUEST_NUMBER: ${{ steps.pr.outputs.number }}
+          WORKFLOW_RUN_URL: ${{ github.event.workflow_run.html_url }}
+        with:
+          script: |
+            const marker = "<!-- coverage-comment -->";
+            const body = `${marker}
+            ## Coverage report
+            - **Total line coverage:** ${process.env.COVERAGE_PERCENT}%
+            - **Lines covered:** ${process.env.COVERAGE_LINES_COVERED}/${process.env.COVERAGE_LINES_VALID}
+
+            _From workflow run: ${process.env.WORKFLOW_RUN_URL}_`;
+
+            const issue_number = Number(process.env.PULL_REQUEST_NUMBER);
+            const comments = await github.paginate(github.rest.issues.listComments, {
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number,
+              per_page: 100,
+            });
+
+            const existing = comments.find(
+              (comment) =>
+                comment.user?.type === "Bot" &&
+                comment.body?.includes(marker),
+            );
+
+            if (existing) {
+              await github.rest.issues.updateComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                comment_id: existing.id,
+                body,
+              });
+            } else {
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number,
+                body,
+              });
+            }
