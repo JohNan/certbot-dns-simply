@@ -24,7 +24,7 @@ jobs:
     - name: Dependencies
       run: |
         python -m pip install --upgrade pip
-        pip install -e .
+        pip install -e .[dev]
     - name: Testing with tox
       run: |
         pip install tox tox-gh-actions
