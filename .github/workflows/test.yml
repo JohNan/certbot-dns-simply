@@ -3,7 +3,6 @@ on: [pull_request]
 
 permissions:
   contents: read
-  pull-requests: write
 
 concurrency:
   group: build-test-${{ github.event.pull_request.number || github.ref }}
@@ -30,12 +29,15 @@ jobs:
         pip install tox tox-gh-actions
         tox
     - name: Generate coverage report
+      if: matrix.python-version == '3.11'
       run: |
         pip install pytest
         pip install pytest-cov
         pytest --cov=./ --cov-report=xml
-    - name: Upload coverage to Codecov
-      uses: orgoro/coverage@v3.3
+    - name: Upload coverage artifact
+      if: matrix.python-version == '3.11'
+      uses: actions/upload-artifact@v4
       with:
-        coverageFile: coverage.xml
-        token: ${{ secrets.GITHUB_TOKEN }}
+        name: coverage-xml
+        path: coverage.xml
+        if-no-files-found: error
