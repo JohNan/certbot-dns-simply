@@ -6,7 +6,6 @@ from contextlib import AbstractContextManager
 import requests
 from certbot.errors import PluginError
 from certbot.plugins import dns_common
-from requests.auth import HTTPBasicAuth
 
 logger = logging.getLogger(__name__)
 
@@ -41,7 +40,6 @@ class Authenticator(dns_common.DNSAuthenticator):
             "credentials",
             "Simply.com API credentials INI file",
             {
-                "account_name": "Account name for Simply.com API",
                 "api_key": "API key for Simply.com API",
             },
         )
@@ -55,10 +53,7 @@ class Authenticator(dns_common.DNSAuthenticator):
             client.del_txt_record(domain, validation_name, validation)
 
     def _get_simply_client(self):
-        return SimplyClient(
-            self.credentials.conf("account_name"),
-            self.credentials.conf("api_key"),
-        )
+        return SimplyClient(self.credentials.conf("api_key"))
 
 
 class SimplyClient(AbstractContextManager):
@@ -66,12 +61,15 @@ class SimplyClient(AbstractContextManager):
 
     API_URL = "https://api.simply.com/2"
 
-    def __init__(self, account_name, api_key):
-        self.account_name = account_name
+    def __init__(self, api_key):
         self.api_key = api_key
         self.session = requests.Session()
-        self.session.auth = HTTPBasicAuth(account_name, api_key)
-        self.session.headers.update({"Content-Type": "application/json"})
+        self.session.headers.update(
+            {
+                "Authorization": f"Bearer {api_key}",
+                "Content-Type": "application/json",
+            }
+        )
 
     def __enter__(self):
         return self
