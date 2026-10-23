@@ -109,7 +109,7 @@ class TestAuthenticator(
         )
 
 
-class TestSimplyClient(unittest.TestCase):
+class TestSimplyClient(unittest.TestCase):  # pylint: disable=too-many-public-methods
     """
     Test for Simply API Client
     """
@@ -200,6 +200,43 @@ class TestSimplyClient(unittest.TestCase):
             self.domain, f"{self.acme_challenge}.{self.domain}", "test_validation"
         )
         self.assertTrue(request_mock.called)
+
+    @requests_mock.Mocker()
+    def test_add_txt_record_picks_most_specific_product(self, request_mock):
+        self.domain = "www.example.com"
+        request_mock.get(
+            "https://api.simply.com/2/my/products/",
+            json={
+                "products": [
+                    {
+                        "object": "example.com",
+                        "domain": {"name": "example.com", "name_idn": "example.com"},
+                    },
+                    {
+                        "object": "www.example.com",
+                        "domain": {
+                            "name": "www.example.com",
+                            "name_idn": "www.example.com",
+                        },
+                    },
+                ]
+            },
+        )
+        for object_id in ("example.com", "www.example.com"):
+            request_mock.post(
+                f"https://api.simply.com/2/my/products/{object_id}/dns/records/",
+                json={"record": {"id": 1}},
+            )
+        self.client.add_txt_record(
+            self.domain, f"{self.acme_challenge}.{self.domain}", "test_validation"
+        )
+        post_calls = [
+            req for req in request_mock.request_history if req.method == "POST"
+        ]
+        self.assertEqual(len(post_calls), 1)
+        self.assertEqual(
+            post_calls[0].path, "/2/my/products/www.example.com/dns/records/"
+        )
 
     @requests_mock.Mocker()
     def test_add_txt_record_wildcard(self, request_mock):

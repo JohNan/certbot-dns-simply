@@ -126,17 +126,20 @@ class SimplyClient(AbstractContextManager):
             )
 
     def _find_product(self, domain: str):
-        """Return (object_id, matched_zone_name) for the product that hosts ``domain``."""
+        """Return (object_id, matched_zone_name) for the most specific product
+        that hosts ``domain``."""
         base_domain_guesses = dns_common.base_domain_name_guesses(domain)
-        response = self._request("GET", "/my/products/")
-        for product in response.get("products", []):
-            product_domain = product.get("domain")
-            if not product_domain:
-                continue
-            for key in ("name", "name_idn"):
-                zone = product_domain.get(key)
-                if zone and zone in base_domain_guesses:
-                    return product["object"], zone
+        products = self._request("GET", "/my/products/").get("products", [])
+        for guess in base_domain_guesses:
+            for product in products:
+                product_domain = product.get("domain") or {}
+                names = (
+                    product_domain.get("name"),
+                    product_domain.get("name_idn"),
+                    product.get("object"),
+                )
+                if any(name and name.lower() == guess.lower() for name in names):
+                    return product["object"], guess
 
         raise PluginError(
             f"No product is matching {base_domain_guesses} for domain {domain}"
