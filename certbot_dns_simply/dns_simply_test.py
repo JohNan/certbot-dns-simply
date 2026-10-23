@@ -62,6 +62,16 @@ class TestAuthenticator(
             DOMAIN, "_acme-challenge." + DOMAIN, mock.ANY
         )
 
+    @patch_display_util()
+    def test_perform_without_account_name(self, _unused_mock_get_utility):
+        path = os.path.join(self.tempdir, "api_key_only.ini")
+        dns_test_common.write({"simply_api_key": "api_key"}, path)
+        self.config.simply_credentials = path
+        self.auth.perform([self.achall])
+        self.mock_client.add_txt_record.assert_called_with(
+            DOMAIN, "_acme-challenge." + DOMAIN, mock.ANY
+        )
+
     def test_perform_but_raises_plugin_error(self):
         self.mock_client.add_txt_record.side_effect = mock.MagicMock(
             side_effect=PluginError()
@@ -99,13 +109,13 @@ class TestAuthenticator(
         )
 
 
-class TestSimplyClient(unittest.TestCase):
+class TestSimplyClient(unittest.TestCase):  # pylint: disable=too-many-public-methods
     """
     Test for Simply API Client
     """
 
     def setUp(self):
-        self.client = SimplyClient("account_name", "api_key")
+        self.client = SimplyClient("api_key")
         self.domain = "example.com"
         self.object_id = "<object_id>"
         self.acme_challenge = "_acme-challenge"
@@ -190,6 +200,43 @@ class TestSimplyClient(unittest.TestCase):
             self.domain, f"{self.acme_challenge}.{self.domain}", "test_validation"
         )
         self.assertTrue(request_mock.called)
+
+    @requests_mock.Mocker()
+    def test_add_txt_record_picks_most_specific_product(self, request_mock):
+        self.domain = "www.example.com"
+        request_mock.get(
+            "https://api.simply.com/2/my/products/",
+            json={
+                "products": [
+                    {
+                        "object": "example.com",
+                        "domain": {"name": "example.com", "name_idn": "example.com"},
+                    },
+                    {
+                        "object": "www.example.com",
+                        "domain": {
+                            "name": "www.example.com",
+                            "name_idn": "www.example.com",
+                        },
+                    },
+                ]
+            },
+        )
+        for object_id in ("example.com", "www.example.com"):
+            request_mock.post(
+                f"https://api.simply.com/2/my/products/{object_id}/dns/records/",
+                json={"record": {"id": 1}},
+            )
+        self.client.add_txt_record(
+            self.domain, f"{self.acme_challenge}.{self.domain}", "test_validation"
+        )
+        post_calls = [
+            req for req in request_mock.request_history if req.method == "POST"
+        ]
+        self.assertEqual(len(post_calls), 1)
+        self.assertEqual(
+            post_calls[0].path, "/2/my/products/www.example.com/dns/records/"
+        )
 
     @requests_mock.Mocker()
     def test_add_txt_record_wildcard(self, request_mock):
@@ -500,7 +547,7 @@ class TestSimplyClient(unittest.TestCase):
         self.assertEqual(post_calls[0].json()["ttl"], 60)
 
     @requests_mock.Mocker()
-    def test_uses_http_basic_auth(self, request_mock):
+    def test_uses_bearer_auth(self, request_mock):
         self._my_products_get_mock(request_mock, self.object_id)
         request_mock.post(
             f"https://api.simply.com/2/my/products/{self.object_id}/dns/records/",
@@ -511,9 +558,8 @@ class TestSimplyClient(unittest.TestCase):
         self.client.add_txt_record(
             self.domain, f"{self.acme_challenge}.{self.domain}", "test_validation"
         )
-        auth_header = request_mock.request_history[0].headers.get("Authorization")
-        self.assertIsNotNone(auth_header)
-        self.assertTrue(auth_header.startswith("Basic "))
+        for request in request_mock.request_history:
+            self.assertEqual(request.headers.get("Authorization"), "Bearer api_key")
 
     @staticmethod
     def _my_products_get_mock(

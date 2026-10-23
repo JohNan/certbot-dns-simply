@@ -19,16 +19,17 @@ To start using DNS authentication for the Simply.com DNS API, pass the following
 
 ## Credentials
 
-Username is the Simply.com account-number (Sxxxxxx) and the password is the API-KEY for the specific account.
-The API-Key assigned to your Simply.com account can be found in your Simply.com Controlpanel.
+The plugin authenticates with the API key of your Simply.com account, sent as a Bearer token (see the [Simply.com API documentation](https://www.simply.com/en/docs/api/)).
+API keys are created in the Simply.com control panel under Account, API keys.
 Please make sure to use the absolute path - some users experienced problems with relative paths.
 
 An example `credentials.ini` file:
 
 ```ini
-dns_simply_account_name = Sxxxxxx
 dns_simply_api_key = DSHJdsjh2812872sahj
 ```
+
+`dns_simply_account_name` is no longer needed. Existing credentials files that still contain it keep working; the value is ignored.
 
 ## Examples
 To acquire a certificate for `example.com`
