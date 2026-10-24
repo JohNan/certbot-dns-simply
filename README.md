@@ -26,7 +26,7 @@ Please make sure to use the absolute path - some users experienced problems with
 An example `credentials.ini` file:
 
 ```ini
-dns_simply_api_key = DSHJdsjh2812872sahj
+dns_simply_api_key = your_api_key
 ```
 
 `dns_simply_account_name` is no longer needed. Existing credentials files that still contain it keep working; the value is ignored.
